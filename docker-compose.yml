@@ -1,0 +1,60 @@
+version: '3'
+
+services:
+  web:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    networks:
+      - aipg
+    build:
+      context: .
+    command: CompileDaemon -build="go build -buildvcs=false ." --log-prefix=false -command="./backend"
+    volumes:
+      - .:/go/src/app
+      - /go/src/app/.git/
+    ports:
+      - "6700:3000"
+    depends_on:
+      - mongo
+      - keydb
+
+  mongo:
+    image: mongo:6.0-focal
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - aipg
+
+  keydb:
+    command: keydb-server --appendonly yes
+    networks:
+      - aipg
+    ports:
+      - "6401:6379"
+    image: eqalpha/keydb
+    volumes:
+      - keydb-data:/data
+
+  nats:
+    networks:
+      - aipg
+    command: "-c /container/nats.conf"
+    volumes:
+      - ./compose/nats:/container
+    ports:
+      - "8081:8081"
+      - "4222:4222"
+      - "8222:8222"
+      - "6222:6222"
+    image: nats
+
+volumes:
+  mongo-data:
+  keydb-data:
+
+
+networks:
+  aipg:
+    name: aipg_network
